@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from classes import User, Message
-import atexit, pickle
+import atexit, pickle, asyncio, websockets, multiprocessing
 app = Flask(__name__)
 app.config["DEBUG"] = True
 memory, users, sessions = {}, {}, {}
@@ -18,6 +18,13 @@ def save():
         pickle.dump(data, fp, protocol=pickle.HIGHEST_PROTOCOL)
         print(" * Saved detcord data")
 atexit.register(save)
+
+# i.e.  const ws=new WebSocket("ws://127.0.0.1:8765");ws.onmessage=function(event){console.log(event.data)};
+async def socket_connection(socket, path):
+    print(" * WebSocket connection made")
+    while True:
+        name = await socket.recv()
+        await socket.send(f"return:{name}")
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -66,4 +73,11 @@ def test():
 def index():
     return "<h1>Detcord</h1>"
 
+def main():
+    server = websockets.serve(socket_connection, "localhost", 8765)
+    asyncio.get_event_loop().run_until_complete(server)
+    asyncio.get_event_loop().run_forever()
+
+p = multiprocessing.Process(target=main)
+p.start()
 app.run()
