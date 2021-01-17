@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from classes import User, Message
 import atexit, pickle, asyncio, websockets, multiprocessing
 app = Flask(__name__)
@@ -23,8 +23,8 @@ atexit.register(save)
 async def socket_connection(socket, path):
     print(" * WebSocket connection made")
     while True:
-        name = await socket.recv()
-        await socket.send(f"return:{name}")
+        ws_data = await socket.recv()
+        await socket.send(f"return:{ws_data}")
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -71,7 +71,7 @@ def test():
 
 @app.route('/')
 def index():
-    return "<h1>Detcord</h1>"
+    return render_template('index.html')
 
 def main():
     server = websockets.serve(socket_connection, "localhost", 8765)
