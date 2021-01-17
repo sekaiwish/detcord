@@ -60,44 +60,44 @@ def login():
                 nonce = users[username].generate_nonce()
                 users[username].sessions.add(nonce)
                 sessions[nonce] = username
-                return jsonify({"token":nonce})
-    return jsonify(0)
+                return jsonify({'token':nonce})
+    return jsonify({'error':'invalid username/password'})
 
 @app.route('/api/<token>/logout')
 def logout(token):
     if token in sessions:
         user = sessions[token]
     else:
-        return jsonify(0)
+        return jsonify({'error':'invalid token'})
     for session in users[user].sessions:
         del sessions[session]
     users[user].sessions.clear()
-    return jsonify(1)
+    return jsonify({'success':1})
 
 @app.route('/api/<token>/message/new', methods=['POST'])
 def message_compose(token):
     if token in sessions:
         user = sessions[token]
     else:
-        return jsonify(0)
+        return jsonify({'error':'invalid token'})
     if request.data:
         message = Message(0, user, request.json['content'])
         memory[message.nonce] = message
-        return jsonify(message.nonce)
-    return jsonify(0)
+        return jsonify({'nonce':message.nonce})
+    return jsonify({'error':'invalid request'})
 
 @app.route('/api/<token>/message/<nonce>/update', methods=['POST'])
 def message_update(token, nonce):
     if token in sessions:
         user = sessions[token]
     else:
-        return jsonify(0)
+        return jsonify({'error':'invalid token'})
     if request.data:
         if nonce in memory:
             if memory[nonce].author == user:
                 memory[nonce].content = request.json['content'][:2000]
-                return jsonify(1)
-    return jsonify(0)
+                return jsonify({'success':1})
+    return jsonify({'error':'invalid request'})
 
 @app.route('/api/test')
 def test():
