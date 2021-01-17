@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import time, uuid, json, pickle, asyncio, multiprocessing, atexit, websockets
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -105,7 +105,7 @@ def test():
 
 @app.route('/')
 def index():
-    return "<h1>Detcord</h1>"
+    return render_template('index.html')
 
 def main():
     server = websockets.serve(socket_connection, "localhost", 8765)
