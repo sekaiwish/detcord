@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template
-import time, uuid, json, pickle, asyncio, multiprocessing, atexit, websockets
+import time, uuid, json, pickle, asyncio, threading, atexit, websockets
 app = Flask(__name__)
 app.config["DEBUG"] = True
 memory, users, sessions = {}, {}, {}
@@ -38,17 +38,6 @@ def save():
         pickle.dump(data, fp, protocol=pickle.HIGHEST_PROTOCOL)
         print(" * Saved detcord data")
 atexit.register(save)
-
-# i.e.  const ws=new WebSocket("ws://127.0.0.1:8765");ws.onmessage=function(event){console.log(event.data)};
-async def socket_connection(socket, path):
-    print(" * WebSocket connection made")
-    while True:
-        ws_data = await socket.recv()
-        try:
-            ws_data = json.loads(ws_data)
-            print(ws_data['key'])
-        except:
-            print("Invalid JSON structure")
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -107,11 +96,38 @@ def test():
 def index():
     return render_template('index.html')
 
+# i.e.  const ws=new WebSocket("ws://127.0.0.1:8765");ws.onmessage=function(event){console.log(event.data)};
+async def socket_connection(socket, path):
+    print(" * WebSocket connection made")
+    while True:
+        ws_data = await socket.recv()
+        try:
+            ws_data = json.loads(ws_data)
+            if ws_data['token'] in sessions:
+                user = sessions[ws_data['token']]
+            else:
+                await socket.send("{'error':'invalid token'}")
+                continue
+            if ws_data['intent'] == 'compose':
+                message = Message(0, user, ws_data['content'])
+                memory[message.nonce] = message
+                await socket.send(jsonify({'nonce':message.nonce}))
+            elif ws_data['intent'] == 'update':
+                if ws_data['nonce'] in memory:
+                    if memory[ws_data['nonce']] == user:
+                        memory[ws_data['nonce']].content = ws_data['content'][:2000]
+                        await socket.send("{'success':1}")
+        except:
+            raise
+            print("Invalid JSON structure")
+
 def main():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     server = websockets.serve(socket_connection, "localhost", 8765)
     asyncio.get_event_loop().run_until_complete(server)
     asyncio.get_event_loop().run_forever()
 
-p = multiprocessing.Process(target=main)
+p = threading.Thread(target=main, daemon=True)
 p.start()
 app.run()
